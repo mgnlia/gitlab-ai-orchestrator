@@ -76,5 +76,5 @@ NEXT_PUBLIC_API_URL=https://your-backend.vercel.app
 
 ## 🔗 Live Demo
 
-- **Frontend:** https://gitlab-ai-orchestrator.vercel.app
-- **Backend API:** https://gitlab-ai-orchestrator-backend.vercel.app/health
+- **Frontend:** https://gitlab-ai-orchestrator-frontend.vercel.app
+- **Backend API:** https://gitlab-ai-orchestrator-m1lkk3bvb-mgnlias-projects.vercel.app/health
