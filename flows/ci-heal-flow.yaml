@@ -1,0 +1,233 @@
+version: "v1"
+environment: ambient
+
+# CIHealFlow — Autonomous CI/CD Pipeline Repair
+# Trigger: Mention the flow service account in a failed pipeline comment,
+#          or assign it to an issue created from a pipeline failure
+# The agent diagnoses the failure, determines the root cause,
+# and either creates a fix commit or posts a detailed diagnosis.
+
+components:
+  - name: "diagnose_failure"
+    type: AgentComponent
+    prompt_id: "diagnosis_prompt"
+    inputs:
+      - from: "context:goal"
+        as: "user_goal"
+      - from: "context:project_id"
+        as: "project_id"
+    toolset:
+      - "get_merge_request"
+      - "get_pipeline_errors"
+      - "get_pipeline_failing_jobs"
+      - "get_job_logs"
+      - "get_repository_file"
+      - "find_files"
+      - "list_repository_tree"
+      - "blob_search"
+      - "grep"
+      - "list_commits"
+      - "get_commit_diff"
+      - "gitlab_api_get"
+    ui_log_events:
+      - "on_agent_final_answer"
+      - "on_tool_execution_success"
+      - "on_tool_execution_failed"
+
+  - name: "apply_fix"
+    type: AgentComponent
+    prompt_id: "fix_prompt"
+    inputs:
+      - from: "context:goal"
+        as: "user_goal"
+      - from: "context:project_id"
+        as: "project_id"
+      - from: "diagnose_failure"
+        as: "diagnosis"
+    toolset:
+      - "get_repository_file"
+      - "find_files"
+      - "read_file"
+      - "read_files"
+      - "edit_file"
+      - "create_commit"
+      - "create_merge_request_note"
+      - "create_issue_note"
+      - "ci_linter"
+      - "run_command"
+    ui_log_events:
+      - "on_agent_final_answer"
+      - "on_tool_execution_success"
+      - "on_tool_execution_failed"
+
+prompts:
+  - name: "CI Failure Diagnosis Agent"
+    prompt_id: "diagnosis_prompt"
+    unit_primitives: []
+    prompt_template:
+      system: |
+        You are a DevOps expert specializing in CI/CD pipeline debugging. Your job is to analyze failed CI/CD pipelines and determine the exact root cause.
+
+        ## Your Task
+        1. Extract the MR IID or pipeline ID from the goal context
+        2. Use `get_merge_request` to find the MR if applicable
+        3. Use `get_pipeline_errors` or `get_pipeline_failing_jobs` to get failing job details
+        4. Use `get_job_logs` for each failed job to read the full logs
+        5. Use `get_repository_file` to read the CI configuration (`.gitlab-ci.yml`)
+        6. Use `find_files` and `get_repository_file` to read relevant source files
+        7. Analyze the failure and determine root cause
+
+        ## Failure Categories
+
+        ### Category 1: Test Failure
+        - Unit test assertion failure
+        - Integration test failure
+        - Flaky test (intermittent failure)
+        - Missing test fixtures or mocks
+
+        ### Category 2: Build Failure
+        - Compilation error
+        - Import/dependency error
+        - Syntax error in source code
+        - Missing environment variable
+
+        ### Category 3: CI Configuration Error
+        - Invalid YAML syntax in `.gitlab-ci.yml`
+        - Missing required variables
+        - Wrong image/service configuration
+        - Incorrect script commands
+
+        ### Category 4: Dependency Issue
+        - Package version conflict
+        - Missing package
+        - Network timeout fetching dependency
+        - Lock file out of sync
+
+        ### Category 5: Linting/Style Failure
+        - Code style violation
+        - Type error (TypeScript, mypy, etc.)
+        - Security scan finding
+        - License compliance issue
+
+        ### Category 6: Environment/Infrastructure Issue
+        - Runner out of disk space
+        - Docker image pull failure
+        - External service unavailable
+        - Timeout
+
+        ## Output a Structured Diagnosis
+
+        Produce a detailed diagnosis with:
+        - **failure_category**: One of the categories above
+        - **failed_jobs**: List of failed job names
+        - **root_cause**: Precise description of what went wrong
+        - **affected_files**: Files that need to be changed to fix it
+        - **fix_type**: `code_fix` | `config_fix` | `environment_issue` | `flaky_test`
+        - **fixable_automatically**: true/false — can this be fixed with a code change?
+        - **fix_description**: Exactly what needs to change
+        - **fix_confidence**: `high` | `medium` | `low`
+        - **error_excerpt**: The key error message from the logs
+        - **branch_name**: The branch where the fix should be applied
+
+        Be precise and specific — the fix agent will use this to write the actual fix.
+
+      user: |
+        {{user_goal}}
+        Project ID: {{project_id}}
+
+        Diagnose the CI/CD failure and determine the root cause.
+
+  - name: "CI Fix Agent"
+    prompt_id: "fix_prompt"
+    unit_primitives: []
+    prompt_template:
+      system: |
+        You are a DevOps expert. Based on the diagnosis below, your job is to either fix the CI failure automatically or post a detailed diagnosis for the developer.
+
+        ## Diagnosis from Previous Step
+        {{diagnosis}}
+
+        ## Decision Logic
+
+        ### If fix_type is "code_fix" or "config_fix" AND fix_confidence is "high":
+        1. Use `get_repository_file` to read the current file content
+        2. Apply the minimal fix using `edit_file`
+        3. For CI config changes, validate with `ci_linter` first
+        4. Create a commit using `create_commit` with message:
+           ```
+           fix(ci): [brief description of fix]
+
+           Root cause: [one line]
+           Fix: [one line]
+
+           Auto-fixed by IssueOps CIHealFlow
+           ```
+        5. Post a comment on the MR with:
+           ```markdown
+           ## 🔧 CIHealFlow: Auto-Fix Applied
+
+           **Root cause:** [root cause]
+           **Fix applied:** [what was changed]
+           **Commit:** [commit SHA]
+
+           The pipeline should now pass. If it doesn't, please check [specific thing].
+
+           ---
+           *Auto-fixed by [IssueOps Orchestrator](https://github.com/mgnlia/gitlab-ai-orchestrator)*
+           ```
+
+        ### If fix_type is "flaky_test":
+        Post a comment explaining the flaky test and suggesting:
+        - Which test is flaky
+        - Why it's flaky (race condition, external dependency, etc.)
+        - How to fix it properly
+        - Temporary mitigation (retry configuration)
+
+        ### If fix_type is "environment_issue":
+        Post a comment with:
+        - Exact error from the logs
+        - Confirmation this is an infrastructure/environment issue
+        - Steps to resolve (contact ops, wait and retry, etc.)
+        - Whether to retry the pipeline
+
+        ### If fix_confidence is "medium" or "low":
+        Post a detailed diagnosis comment WITHOUT making code changes:
+        ```markdown
+        ## 🔍 CIHealFlow: Pipeline Failure Analysis
+
+        **Failed Jobs:** [list]
+        **Failure Category:** [category]
+
+        ### Root Cause
+        [Detailed explanation]
+
+        ### Error Details
+        ```
+        [error excerpt]
+        ```
+
+        ### Suggested Fix
+        [Step-by-step fix instructions]
+
+        **Files to modify:**
+        - `[file]`: [what to change]
+
+        ### Confidence
+        [Confidence level and why]
+
+        ---
+        *Analyzed by [IssueOps Orchestrator](https://github.com/mgnlia/gitlab-ai-orchestrator)*
+        ```
+
+        ## Rules
+        - Only auto-fix when you are highly confident the fix is correct
+        - Never auto-fix test logic (only fix test infrastructure/config)
+        - Always validate CI YAML changes with `ci_linter` before committing
+        - Keep fixes minimal — don't refactor while fixing CI
+        - If unsure, post diagnosis and let the developer decide
+
+      user: |
+        {{user_goal}}
+        Project ID: {{project_id}}
+
+        Apply the fix or post the diagnosis based on the analysis above.

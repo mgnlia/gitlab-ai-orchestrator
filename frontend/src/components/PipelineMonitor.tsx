@@ -2,27 +2,26 @@
 
 import { useState } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://gitlab-ai-orchestrator-backend.vercel.app";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
-const STATUS_STYLES: Record<string, { color: string; icon: string; bg: string }> = {
-  failed: { color: "text-red-400", icon: "✗", bg: "bg-red-900/20 border-red-800" },
-  passed: { color: "text-green-400", icon: "✓", bg: "bg-green-900/20 border-green-800" },
-  running: { color: "text-blue-400", icon: "↻", bg: "bg-blue-900/20 border-blue-800" },
-  pending: { color: "text-yellow-400", icon: "◔", bg: "bg-yellow-900/20 border-yellow-800" },
-  canceled: { color: "text-gray-400", icon: "⊘", bg: "bg-gray-900/20 border-gray-700" },
-};
+interface FailedJob {
+  name: string;
+  stage: string;
+  error: string;
+}
 
 interface PipelineResult {
   status: string;
-  failed_jobs: string[];
+  failed_jobs: FailedJob[];
   recommendation: string;
 }
 
-const EXAMPLES = [
-  { id: "pipeline-12345", label: "🔴 Failed Pipeline" },
-  { id: "pipeline-pass-99", label: "🟢 Passing Pipeline" },
-  { id: "pipeline-67890", label: "⚠️ Flaky Tests" },
-];
+const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+  failed: { bg: "bg-red-500/10", text: "text-red-400", dot: "bg-red-400", label: "Failed" },
+  passed: { bg: "bg-green-500/10", text: "text-green-400", dot: "bg-green-400", label: "Passed" },
+  running: { bg: "bg-blue-500/10", text: "text-blue-400", dot: "bg-blue-400", label: "Running" },
+  pending: { bg: "bg-yellow-500/10", text: "text-yellow-400", dot: "bg-yellow-400", label: "Pending" },
+};
 
 export default function PipelineMonitor() {
   const [pipelineId, setPipelineId] = useState("");
@@ -39,7 +38,7 @@ export default function PipelineMonitor() {
     setError("");
     setResult(null);
     try {
-      const res = await fetch(`${API_BASE}/pipeline-status`, {
+      const res = await fetch(`${API_URL}/pipeline-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pipeline_id: pipelineId }),
@@ -54,101 +53,111 @@ export default function PipelineMonitor() {
     }
   };
 
-  const style = result ? (STATUS_STYLES[result.status] || STATUS_STYLES.pending) : null;
+  const statusKey = result?.status?.toLowerCase() || "failed";
+  const statusStyle = STATUS_CONFIG[statusKey] || STATUS_CONFIG.failed;
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-white text-xl font-semibold mb-1">Pipeline Monitor</h2>
-        <p className="text-gitlab-muted text-sm">
-          Enter a pipeline ID to get AI-powered failure analysis and remediation recommendations.
+        <p className="text-[#9B9A9F] text-sm">
+          Enter a pipeline ID and get AI-powered failure analysis with actionable recommendations.
         </p>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        <span className="text-gitlab-muted text-xs self-center">Try an example:</span>
-        {EXAMPLES.map((ex) => (
-          <button
-            key={ex.id}
-            onClick={() => { setPipelineId(ex.id); setResult(null); setError(""); }}
-            className="px-3 py-1 text-xs rounded-full border border-gitlab-border text-gitlab-muted hover:text-white hover:border-gitlab-orange transition-colors"
-          >
-            {ex.label}
-          </button>
-        ))}
-      </div>
+      <div className="bg-[#1F1E24] border border-[#383640] rounded-xl p-6 space-y-4">
+        <label className="text-[#9B9A9F] text-sm font-medium">Pipeline ID</label>
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gitlab-muted mb-1.5">Pipeline ID</label>
+        <div className="flex gap-3">
           <input
             type="text"
+            placeholder="e.g. 1234567 or pipeline-abc"
             value={pipelineId}
             onChange={(e) => setPipelineId(e.target.value)}
-            placeholder="e.g. pipeline-12345 or 67890"
-            className="w-full bg-gitlab-card border border-gitlab-border rounded-lg px-4 py-3 text-white placeholder-gitlab-muted focus:outline-none focus:border-gitlab-orange transition-colors text-sm"
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+            className="flex-1 bg-[#141217] border border-[#383640] rounded-lg px-4 py-3 text-white placeholder-[#9B9A9F] text-sm focus:outline-none focus:border-[#FC6D26] transition-colors"
           />
-          <p className="text-gitlab-muted text-xs mt-1">Tip: include &quot;pass&quot; in the ID to simulate a passing pipeline</p>
+          <button
+            onClick={() => { setPipelineId("9876543"); setResult(null); setError(""); }}
+            className="px-4 py-3 rounded-lg bg-[#252429] border border-[#383640] text-[#9B9A9F] hover:text-white text-sm transition-colors whitespace-nowrap"
+          >
+            Demo ID
+          </button>
         </div>
+
+        <p className="text-[#9B9A9F] text-xs">
+          💡 Demo mode — AI generates realistic pipeline analysis for any ID
+        </p>
+
         {error && <p className="text-red-400 text-sm">{error}</p>}
+
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="px-6 py-2.5 bg-gitlab-orange hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors text-sm"
+          className="w-full bg-[#FC6D26] hover:bg-[#FC6D26]/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors text-sm"
         >
           {loading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               Analyzing pipeline...
             </span>
           ) : (
-            "⚙️ Analyze Pipeline"
+            "⚡ Check Pipeline"
           )}
         </button>
       </div>
 
-      {result && style && (
-        <div className="bg-gitlab-card border border-gitlab-border rounded-xl p-6 space-y-5">
-          <div className={`flex items-center gap-3 p-4 rounded-lg border ${style.bg}`}>
-            <span className={`text-2xl font-bold ${style.color}`}>{style.icon}</span>
-            <div>
-              <p className={`font-bold text-lg uppercase ${style.color}`}>{result.status}</p>
-              <p className="text-gitlab-muted text-xs">Pipeline #{pipelineId}</p>
+      {result && (
+        <div className="bg-[#1F1E24] border border-[#383640] rounded-xl p-6 space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-400" />
+              <span className="text-green-400 text-sm font-medium">Analysis Complete</span>
+            </div>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${statusStyle.bg}`}>
+              <span className={`w-2 h-2 rounded-full ${statusStyle.dot}`} />
+              <span className={`${statusStyle.text} text-sm font-semibold`}>
+                Pipeline {statusStyle.label}
+              </span>
             </div>
           </div>
 
-          {result.failed_jobs.length > 0 && (
-            <div>
-              <p className="text-gitlab-muted text-xs uppercase tracking-wide mb-3">
+          <div className="bg-[#141217] rounded-lg p-4">
+            <p className="text-[#9B9A9F] text-xs mb-1 uppercase tracking-wider">Pipeline ID</p>
+            <code className="text-[#FC6D26] font-mono text-sm">#{pipelineId}</code>
+          </div>
+
+          {result.failed_jobs?.length > 0 && (
+            <div className="bg-[#141217] rounded-lg p-4">
+              <p className="text-[#9B9A9F] text-xs mb-3 uppercase tracking-wider">
                 Failed Jobs ({result.failed_jobs.length})
               </p>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {result.failed_jobs.map((job, i) => (
-                  <div key={i} className="flex items-start gap-3 bg-red-900/10 border border-red-900/30 rounded-lg px-4 py-3">
-                    <span className="text-red-400 mt-0.5">✗</span>
-                    <p className="text-red-300 text-sm">{job}</p>
+                  <div key={i} className="border border-red-500/20 rounded-lg p-3 bg-red-500/5">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-red-400 text-xs">✗</span>
+                      <span className="text-white text-sm font-medium">{job.name}</span>
+                      <span className="px-2 py-0.5 rounded text-xs bg-[#252429] text-[#9B9A9F] border border-[#383640]">
+                        {job.stage}
+                      </span>
+                    </div>
+                    <p className="text-[#9B9A9F] text-xs pl-4">{job.error}</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {result.failed_jobs.length === 0 && result.status === "passed" && (
-            <div className="flex items-center gap-3 bg-green-900/10 border border-green-900/30 rounded-lg px-4 py-3">
-              <span className="text-green-400">✓</span>
-              <p className="text-green-300 text-sm">All jobs passed successfully!</p>
+          {result.failed_jobs?.length === 0 && (
+            <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-4 text-center">
+              <p className="text-green-400 text-sm">✓ No failed jobs detected</p>
             </div>
           )}
 
-          <div>
-            <p className="text-gitlab-muted text-xs uppercase tracking-wide mb-2">AI Recommendation</p>
-            <div className="bg-gitlab-dark border border-gitlab-border rounded-lg px-4 py-3">
-              <p className="text-white text-sm leading-relaxed">{result.recommendation}</p>
-            </div>
+          <div className="bg-[#141217] rounded-lg p-4">
+            <p className="text-[#9B9A9F] text-xs mb-2 uppercase tracking-wider">AI Recommendation</p>
+            <p className="text-white text-sm leading-relaxed">{result.recommendation}</p>
           </div>
         </div>
       )}

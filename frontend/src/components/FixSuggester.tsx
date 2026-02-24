@@ -2,22 +2,14 @@
 
 import { useState } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://gitlab-ai-orchestrator-backend.vercel.app";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 const EFFORT_COLORS: Record<string, string> = {
-  XS: "bg-green-900/40 text-green-400 border-green-800",
-  S: "bg-teal-900/40 text-teal-400 border-teal-800",
-  M: "bg-yellow-900/40 text-yellow-400 border-yellow-800",
-  L: "bg-orange-900/40 text-orange-400 border-orange-800",
-  XL: "bg-red-900/40 text-red-400 border-red-800",
-};
-
-const EFFORT_LABELS: Record<string, string> = {
-  XS: "< 1 hour",
-  S: "1–4 hours",
-  M: "0.5–2 days",
-  L: "2–5 days",
-  XL: "> 5 days",
+  XS: "bg-green-500/10 text-green-400 border-green-500/30",
+  S: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+  M: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30",
+  L: "bg-orange-500/10 text-orange-400 border-orange-500/30",
+  XL: "bg-red-500/10 text-red-400 border-red-500/30",
 };
 
 interface FixResult {
@@ -27,16 +19,10 @@ interface FixResult {
   estimated_effort: string;
 }
 
-const EXAMPLES = [
-  {
-    title: "Memory leak in WebSocket connection handler",
-    body: "The WebSocket connection handler is not properly cleaning up event listeners when connections close. This causes memory usage to grow unboundedly over time. After ~24h of uptime, the server runs out of memory. Stack trace: EventEmitter memory leak detected. 11 close listeners added to [WebSocket].",
-  },
-  {
-    title: "Add rate limiting to the public API endpoints",
-    body: "Our public API endpoints have no rate limiting. We are seeing abuse from bots making thousands of requests per minute. We need to implement rate limiting (100 req/min per IP) using Redis for distributed rate limiting across our cluster.",
-  },
-];
+const EXAMPLE = {
+  title: "Pagination breaks when filtering results by date range",
+  body: "The pagination component loses its state when users apply date filters. After filtering, clicking 'next page' returns to page 1 instead of advancing. This happens in the /reports and /analytics views. The issue started after the React Query v5 migration.",
+};
 
 export default function FixSuggester() {
   const [title, setTitle] = useState("");
@@ -48,14 +34,14 @@ export default function FixSuggester() {
 
   const handleSubmit = async () => {
     if (!title.trim() || !body.trim()) {
-      setError("Please fill in both the issue title and body.");
+      setError("Please fill in both fields.");
       return;
     }
     setLoading(true);
     setError("");
     setResult(null);
     try {
-      const res = await fetch(`${API_BASE}/suggest-fix`, {
+      const res = await fetch(`${API_URL}/suggest-fix`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ issue_title: title, issue_body: body }),
@@ -70,8 +56,15 @@ export default function FixSuggester() {
     }
   };
 
+  const loadExample = () => {
+    setTitle(EXAMPLE.title);
+    setBody(EXAMPLE.body);
+    setResult(null);
+    setError("");
+  };
+
   const copyBranch = () => {
-    if (result) {
+    if (result?.branch_name) {
       navigator.clipboard.writeText(`git checkout -b ${result.branch_name}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -82,57 +75,48 @@ export default function FixSuggester() {
     <div className="space-y-6">
       <div>
         <h2 className="text-white text-xl font-semibold mb-1">Fix Suggester</h2>
-        <p className="text-gitlab-muted text-sm">
-          Get an AI-generated fix plan: branch name, technical approach, and files to change.
+        <p className="text-[#9B9A9F] text-sm">
+          Describe an issue and get an AI-generated branch name, fix approach, and list of files to change.
         </p>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        <span className="text-gitlab-muted text-xs self-center">Try an example:</span>
-        {EXAMPLES.map((ex, i) => (
+      <div className="bg-[#1F1E24] border border-[#383640] rounded-xl p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <label className="text-[#9B9A9F] text-sm font-medium">Issue Details</label>
           <button
-            key={i}
-            onClick={() => { setTitle(ex.title); setBody(ex.body); setResult(null); setError(""); }}
-            className="px-3 py-1 text-xs rounded-full border border-gitlab-border text-gitlab-muted hover:text-white hover:border-gitlab-orange transition-colors"
+            onClick={loadExample}
+            className="text-xs text-[#FC6D26] hover:text-[#FC6D26]/80 transition-colors"
           >
-            {i === 0 ? "🧠 Memory Leak" : "🛡️ Rate Limiting"}
+            Load example →
           </button>
-        ))}
-      </div>
+        </div>
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gitlab-muted mb-1.5">Issue Title</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Memory leak in WebSocket connection handler"
-            className="w-full bg-gitlab-card border border-gitlab-border rounded-lg px-4 py-3 text-white placeholder-gitlab-muted focus:outline-none focus:border-gitlab-orange transition-colors text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gitlab-muted mb-1.5">Issue Body</label>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Describe the issue — the more detail, the better the fix suggestion..."
-            rows={5}
-            className="w-full bg-gitlab-card border border-gitlab-border rounded-lg px-4 py-3 text-white placeholder-gitlab-muted focus:outline-none focus:border-gitlab-orange transition-colors text-sm resize-none"
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="Issue title..."
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full bg-[#141217] border border-[#383640] rounded-lg px-4 py-3 text-white placeholder-[#9B9A9F] text-sm focus:outline-none focus:border-[#FC6D26] transition-colors"
+        />
+
+        <textarea
+          placeholder="Issue description..."
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={5}
+          className="w-full bg-[#141217] border border-[#383640] rounded-lg px-4 py-3 text-white placeholder-[#9B9A9F] text-sm focus:outline-none focus:border-[#FC6D26] transition-colors resize-none"
+        />
+
         {error && <p className="text-red-400 text-sm">{error}</p>}
+
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="px-6 py-2.5 bg-gitlab-orange hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors text-sm"
+          className="w-full bg-[#FC6D26] hover:bg-[#FC6D26]/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors text-sm"
         >
           {loading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               Generating fix plan...
             </span>
           ) : (
@@ -142,39 +126,57 @@ export default function FixSuggester() {
       </div>
 
       {result && (
-        <div className="bg-gitlab-card border border-gitlab-border rounded-xl p-6 space-y-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-white font-semibold">Fix Plan</h3>
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${EFFORT_COLORS[result.estimated_effort] || EFFORT_COLORS.M}`}>
-              {result.estimated_effort} · {EFFORT_LABELS[result.estimated_effort] || "Unknown"}
-            </span>
+        <div className="bg-[#1F1E24] border border-[#383640] rounded-xl p-6 space-y-5">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-400" />
+            <span className="text-green-400 text-sm font-medium">Fix Plan Generated</span>
           </div>
 
-          <div>
-            <p className="text-gitlab-muted text-xs uppercase tracking-wide mb-2">Branch Name</p>
-            <div className="flex items-center gap-2 bg-gitlab-dark rounded-lg px-4 py-3 border border-gitlab-border">
-              <code className="text-gitlab-orange text-sm flex-1 font-mono">git checkout -b {result.branch_name}</code>
+          <div className="bg-[#141217] rounded-lg p-4">
+            <p className="text-[#9B9A9F] text-xs mb-3 uppercase tracking-wider">Branch Name</p>
+            <div className="flex items-center gap-3">
+              <code className="flex-1 text-[#FC6D26] font-mono text-sm bg-[#FC6D26]/5 border border-[#FC6D26]/20 px-3 py-2 rounded-lg">
+                {result.branch_name}
+              </code>
               <button
                 onClick={copyBranch}
-                className="text-gitlab-muted hover:text-white transition-colors text-xs px-2 py-1 rounded border border-gitlab-border hover:border-gitlab-orange"
+                className="px-3 py-2 rounded-lg bg-[#252429] border border-[#383640] text-[#9B9A9F] hover:text-white text-xs transition-colors whitespace-nowrap"
               >
-                {copied ? "✓ Copied" : "Copy"}
+                {copied ? "✓ Copied" : "Copy git cmd"}
               </button>
             </div>
           </div>
 
-          <div>
-            <p className="text-gitlab-muted text-xs uppercase tracking-wide mb-2">Technical Approach</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-[#141217] rounded-lg p-4">
+              <p className="text-[#9B9A9F] text-xs mb-2 uppercase tracking-wider">Estimated Effort</p>
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold border ${
+                  EFFORT_COLORS[result.estimated_effort] || "bg-gray-500/10 text-gray-400 border-gray-500/30"
+                }`}
+              >
+                {result.estimated_effort}
+              </span>
+            </div>
+
+            <div className="bg-[#141217] rounded-lg p-4">
+              <p className="text-[#9B9A9F] text-xs mb-2 uppercase tracking-wider">Files to Change</p>
+              <p className="text-white text-lg font-bold">{result.files_to_change?.length || 0}</p>
+            </div>
+          </div>
+
+          <div className="bg-[#141217] rounded-lg p-4">
+            <p className="text-[#9B9A9F] text-xs mb-2 uppercase tracking-wider">Fix Approach</p>
             <p className="text-white text-sm leading-relaxed">{result.approach}</p>
           </div>
 
-          <div>
-            <p className="text-gitlab-muted text-xs uppercase tracking-wide mb-2">Files to Change</p>
-            <div className="space-y-1.5">
-              {result.files_to_change.map((file) => (
-                <div key={file} className="flex items-center gap-2 text-sm">
-                  <span className="text-gitlab-orange">📄</span>
-                  <code className="text-green-300 font-mono text-xs">{file}</code>
+          <div className="bg-[#141217] rounded-lg p-4">
+            <p className="text-[#9B9A9F] text-xs mb-3 uppercase tracking-wider">Files to Change</p>
+            <div className="space-y-2">
+              {result.files_to_change?.map((file, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-[#9B9A9F] text-xs">📄</span>
+                  <code className="text-[#a78bfa] font-mono text-xs">{file}</code>
                 </div>
               ))}
             </div>

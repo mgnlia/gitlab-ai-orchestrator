@@ -2,20 +2,20 @@
 
 import { useState } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://gitlab-ai-orchestrator-backend.vercel.app";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 const PRIORITY_COLORS: Record<string, string> = {
-  critical: "bg-red-900/40 text-red-400 border-red-800",
-  high: "bg-orange-900/40 text-orange-400 border-orange-800",
-  medium: "bg-yellow-900/40 text-yellow-400 border-yellow-800",
-  low: "bg-blue-900/40 text-blue-400 border-blue-800",
+  critical: "bg-red-500/10 text-red-400 border-red-500/30",
+  high: "bg-orange-500/10 text-orange-400 border-orange-500/30",
+  medium: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30",
+  low: "bg-green-500/10 text-green-400 border-green-500/30",
 };
 
-const PRIORITY_ICONS: Record<string, string> = {
-  critical: "🔴",
-  high: "🟠",
-  medium: "🟡",
-  low: "🔵",
+const PRIORITY_DOT: Record<string, string> = {
+  critical: "bg-red-400",
+  high: "bg-orange-400",
+  medium: "bg-yellow-400",
+  low: "bg-green-400",
 };
 
 interface TriageResult {
@@ -25,16 +25,10 @@ interface TriageResult {
   summary: string;
 }
 
-const EXAMPLES = [
-  {
-    title: "Application crashes on login with special characters in password",
-    body: "When users enter passwords containing special characters like @, #, or !, the application throws a 500 error and crashes. This affects all users trying to reset their passwords. Error log shows: UnhandledPromiseRejectionWarning: SyntaxError: Unexpected token in JSON.",
-  },
-  {
-    title: "Add dark mode support to the dashboard",
-    body: "Users have been requesting dark mode for a while. We should implement a theme toggle that persists user preference. This would improve UX for users working in low-light environments.",
-  },
-];
+const EXAMPLE = {
+  title: "Login fails with 500 error when email contains special characters",
+  body: "When users try to log in with emails containing '+' or '.' characters, the authentication service returns a 500 Internal Server Error. This affects approximately 15% of our user base. Stack trace shows a SQL injection vulnerability in the email sanitization layer.",
+};
 
 export default function IssueTriage() {
   const [title, setTitle] = useState("");
@@ -45,14 +39,14 @@ export default function IssueTriage() {
 
   const handleSubmit = async () => {
     if (!title.trim() || !body.trim()) {
-      setError("Please fill in both the issue title and body.");
+      setError("Please fill in both fields.");
       return;
     }
     setLoading(true);
     setError("");
     setResult(null);
     try {
-      const res = await fetch(`${API_BASE}/triage`, {
+      const res = await fetch(`${API_URL}/triage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ issue_title: title, issue_body: body }),
@@ -67,9 +61,9 @@ export default function IssueTriage() {
     }
   };
 
-  const loadExample = (ex: { title: string; body: string }) => {
-    setTitle(ex.title);
-    setBody(ex.body);
+  const loadExample = () => {
+    setTitle(EXAMPLE.title);
+    setBody(EXAMPLE.body);
     setResult(null);
     setError("");
   };
@@ -78,98 +72,99 @@ export default function IssueTriage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-white text-xl font-semibold mb-1">Issue Triage</h2>
-        <p className="text-gitlab-muted text-sm">
-          Paste a GitLab issue and let AI classify priority, assign labels, and suggest the right team.
+        <p className="text-[#9B9A9F] text-sm">
+          Paste a GitLab issue and get AI-powered priority classification, labels, and assignment suggestions.
         </p>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        <span className="text-gitlab-muted text-xs self-center">Try an example:</span>
-        {EXAMPLES.map((ex, i) => (
+      <div className="bg-[#1F1E24] border border-[#383640] rounded-xl p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <label className="text-[#9B9A9F] text-sm font-medium">Issue Details</label>
           <button
-            key={i}
-            onClick={() => loadExample(ex)}
-            className="px-3 py-1 text-xs rounded-full border border-gitlab-border text-gitlab-muted hover:text-white hover:border-gitlab-orange transition-colors"
+            onClick={loadExample}
+            className="text-xs text-[#FC6D26] hover:text-[#FC6D26]/80 transition-colors"
           >
-            {i === 0 ? "🐛 Bug Report" : "✨ Feature Request"}
+            Load example →
           </button>
-        ))}
-      </div>
+        </div>
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gitlab-muted mb-1.5">Issue Title</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Application crashes on login with special characters"
-            className="w-full bg-gitlab-card border border-gitlab-border rounded-lg px-4 py-3 text-white placeholder-gitlab-muted focus:outline-none focus:border-gitlab-orange transition-colors text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gitlab-muted mb-1.5">Issue Body</label>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Describe the issue in detail — steps to reproduce, expected vs actual behavior, error logs..."
-            rows={5}
-            className="w-full bg-gitlab-card border border-gitlab-border rounded-lg px-4 py-3 text-white placeholder-gitlab-muted focus:outline-none focus:border-gitlab-orange transition-colors text-sm resize-none"
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="Issue title..."
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full bg-[#141217] border border-[#383640] rounded-lg px-4 py-3 text-white placeholder-[#9B9A9F] text-sm focus:outline-none focus:border-[#FC6D26] transition-colors"
+        />
+
+        <textarea
+          placeholder="Issue description, steps to reproduce, error logs..."
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={5}
+          className="w-full bg-[#141217] border border-[#383640] rounded-lg px-4 py-3 text-white placeholder-[#9B9A9F] text-sm focus:outline-none focus:border-[#FC6D26] transition-colors resize-none"
+        />
+
         {error && <p className="text-red-400 text-sm">{error}</p>}
+
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="px-6 py-2.5 bg-gitlab-orange hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors text-sm"
+          className="w-full bg-[#FC6D26] hover:bg-[#FC6D26]/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors text-sm"
         >
           {loading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Analyzing...
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Analyzing issue...
             </span>
           ) : (
-            "🏷️ Triage Issue"
+            "🔍 Triage Issue"
           )}
         </button>
       </div>
 
       {result && (
-        <div className="bg-gitlab-card border border-gitlab-border rounded-xl p-6 space-y-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-white font-semibold">Triage Result</h3>
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold border ${PRIORITY_COLORS[result.priority] || PRIORITY_COLORS.medium}`}
-            >
-              {PRIORITY_ICONS[result.priority]} {result.priority.toUpperCase()} PRIORITY
-            </span>
-          </div>
-
-          <div>
-            <p className="text-gitlab-muted text-xs uppercase tracking-wide mb-2">AI Summary</p>
-            <p className="text-white text-sm leading-relaxed">{result.summary}</p>
+        <div className="bg-[#1F1E24] border border-[#383640] rounded-xl p-6 space-y-5">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-400" />
+            <span className="text-green-400 text-sm font-medium">Triage Complete</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-gitlab-muted text-xs uppercase tracking-wide mb-2">Labels</p>
-              <div className="flex flex-wrap gap-2">
-                {result.labels.map((label) => (
-                  <span key={label} className="px-2 py-1 bg-gitlab-purple/20 text-purple-300 border border-purple-800/50 rounded text-xs">
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-gitlab-muted text-xs uppercase tracking-wide mb-2">Suggested Assignee</p>
-              <span className="px-3 py-1 bg-gitlab-dark border border-gitlab-border rounded-lg text-white text-sm">
-                👤 {result.suggested_assignee}
+            <div className="bg-[#141217] rounded-lg p-4">
+              <p className="text-[#9B9A9F] text-xs mb-2 uppercase tracking-wider">Priority</p>
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${
+                  PRIORITY_COLORS[result.priority?.toLowerCase()] || "bg-gray-500/10 text-gray-400 border-gray-500/30"
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${PRIORITY_DOT[result.priority?.toLowerCase()] || "bg-gray-400"}`} />
+                {result.priority?.toUpperCase()}
               </span>
             </div>
+
+            <div className="bg-[#141217] rounded-lg p-4">
+              <p className="text-[#9B9A9F] text-xs mb-2 uppercase tracking-wider">Suggested Assignee</p>
+              <p className="text-white text-sm font-medium">{result.suggested_assignee}</p>
+            </div>
+          </div>
+
+          <div className="bg-[#141217] rounded-lg p-4">
+            <p className="text-[#9B9A9F] text-xs mb-3 uppercase tracking-wider">Labels</p>
+            <div className="flex flex-wrap gap-2">
+              {result.labels?.map((label, i) => (
+                <span
+                  key={i}
+                  className="px-2.5 py-1 rounded-md bg-[#6B4FBB]/20 text-[#a78bfa] border border-[#6B4FBB]/30 text-xs font-medium"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-[#141217] rounded-lg p-4">
+            <p className="text-[#9B9A9F] text-xs mb-2 uppercase tracking-wider">AI Summary</p>
+            <p className="text-white text-sm leading-relaxed">{result.summary}</p>
           </div>
         </div>
       )}
