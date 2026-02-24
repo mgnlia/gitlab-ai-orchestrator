@@ -13,6 +13,8 @@ Built for the **GitLab AI Hackathon 2026** ($65,000 prize).
 | ⚡ **Pipeline Monitor** | Enter a pipeline ID → get status, failed jobs breakdown, and fix recommendations |
 | 📋 **MR Reviewer** | Paste an MR diff → get code review summary, risks, and approval recommendation |
 
+> **Note on Pipeline Monitor:** The demo backend generates realistic pipeline data based on pipeline ID parity (even = passing, odd = failing). This simulates real GitLab pipeline states without requiring a live GitLab token. The `/health` endpoint returns `mode: demo` to reflect this.
+
 ## 🛠 Tech Stack
 
 - **Backend:** Python 3.12, FastAPI, Anthropic Claude API, Vercel serverless
@@ -37,7 +39,7 @@ gitlab-ai-orchestrator/
 ## 🔌 API Endpoints
 
 ```
-GET  /health                    → service status
+GET  /health                    → service status (mode: demo)
 POST /triage                    → issue priority + labels + assignee
 POST /suggest-fix               → branch name + approach + files
 POST /pipeline-status           → status + failed jobs + recommendation
@@ -71,3 +73,8 @@ ANTHROPIC_API_KEY=your_key_here
 ```
 NEXT_PUBLIC_API_URL=https://your-backend.vercel.app
 ```
+
+## 🔗 Live Demo
+
+- **Frontend:** https://gitlab-ai-orchestrator.vercel.app
+- **Backend API:** https://gitlab-ai-orchestrator-backend.vercel.app/health
