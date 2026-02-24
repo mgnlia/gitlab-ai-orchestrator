@@ -1,9 +1,2 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "",
-  },
-};
-
-export default nextConfig;
+// This file intentionally left as a redirect — see next.config.js
+// DO NOT ADD CONFIG HERE — use next.config.js (CJS) to avoid dual-config conflict
