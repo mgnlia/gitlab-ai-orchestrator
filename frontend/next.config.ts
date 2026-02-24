@@ -1,2 +1,5 @@
-// This file intentionally left as a redirect — see next.config.js
-// DO NOT ADD CONFIG HERE — use next.config.js (CJS) to avoid dual-config conflict
+// next.config.ts — intentionally empty
+// Next.js 14.2.x does not support next.config.ts with ESM exports.
+// All configuration lives in next.config.js (CommonJS).
+// This file exists only to satisfy TypeScript path references in tsconfig.json.
+export {};
