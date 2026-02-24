@@ -17,7 +17,7 @@ Built for the **GitLab AI Hackathon 2026** ($65,000 prize).
 
 - **Backend:** Python 3.12, FastAPI, Anthropic Claude API, Vercel serverless
 - **Frontend:** Next.js 14, TypeScript, Tailwind CSS, Vercel
-- **AI:** Claude claude-opus-4-5 for all intelligent analysis
+- **AI:** Claude claude-3-5-haiku-20241022 for all intelligent analysis
 
 ## 🏗 Architecture
 
